@@ -82,29 +82,45 @@ async function enviarEmail(novas) {
 
 async function buscarProposicoes() {
   const ano = new Date().getFullYear();
-  console.log(`🔍 Buscando proposições de ${ano}...`);
+  console.log(`Buscando proposicoes de ${ano}...`);
 
-  const url = `${API_BASE}/materia/materialegislativa/?ano=${ano}&page=1&page_size=100&ordering=-id`;
-  const response = await fetch(url, {
-    headers: { 'Accept': 'application/json' }
-  });
+  // ALETO: API ignora ordering e nao retorna count/next corretos.
+  // Buscar multiplas paginas com page_size=200 ate pagina vazia.
+  const PAGE_SIZE = 200;
+  const todas = [];
+  const idsSeen = new Set();
 
-  if (!response.ok) {
-    console.error(`❌ Erro na API: ${response.status} ${response.statusText}`);
-    const texto = await response.text();
-    console.error('Resposta:', texto.substring(0, 300));
-    return [];
+  for (let page = 1; page <= 10; page++) {
+    const url = `${API_BASE}/materia/materialegislativa/?ano=${ano}&page=${page}&page_size=${PAGE_SIZE}`;
+    let response;
+    try {
+      response = await fetch(url, { headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0 Chrome/120' } });
+    } catch (err) {
+      console.error(`Erro na pagina ${page}: ${err.message}`);
+      break;
+    }
+    if (!response.ok) {
+      console.error(`Erro na API p.${page}: ${response.status}`);
+      break;
+    }
+    const json = await response.json();
+    const lista = json.results || [];
+    if (lista.length === 0) break;
+
+    let novas = 0;
+    for (const item of lista) {
+      if (!idsSeen.has(item.id)) { idsSeen.add(item.id); todas.push(item); novas++; }
+    }
+    console.log(`Pagina ${page}: ${lista.length} itens (${novas} novos, total: ${todas.length})`);
+
+    // Se retornou menos que PAGE_SIZE, nao ha mais paginas
+    if (lista.length < PAGE_SIZE) break;
+    // Se nao veio nenhum item novo (API retornou os mesmos), para
+    if (novas === 0) break;
   }
 
-  const json = await response.json();
-  console.log('📦 Resposta da API (estrutura):', JSON.stringify(json).substring(0, 300));
-
-  // SAPL usa DRF padrão: { count, next, results[] }
-  const lista = json.results || [];
-  const total = json.count || lista.length;
-  console.log(`📊 ${lista.length} proposições recebidas (total no ano: ${total})`);
-
-  return lista;
+  console.log(`Total de proposicoes unicas: ${todas.length}`);
+  return todas;
 }
 
 function extrairTipo(p) {
