@@ -18,9 +18,23 @@ function salvarEstado(estado) {
   fs.writeFileSync(ARQUIVO_ESTADO, JSON.stringify(estado, null, 2));
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function construirLinkProposicao(p) {
+  return p.id ? `https://sapl.al.to.leg.br/materia/${encodeURIComponent(p.id)}` : 'https://sapl.al.to.leg.br/materia/pesquisar-materia';
+}
+
 async function enviarEmail(novas) {
   if (process.env.DRY_RUN_EMAIL === '1') {
     console.log(`[DRY_RUN_EMAIL] Email não enviado. Seriam ${novas.length} proposições.`);
+    novas.slice(0, 5).forEach(p => console.log(`[DRY_RUN_EMAIL] ${p.tipo} ${p.numero}/${p.ano}: ${p.link}`));
     return;
   }
 
@@ -38,16 +52,19 @@ async function enviarEmail(novas) {
   });
 
   const linhas = Object.keys(porTipo).sort().map(tipo => {
-    const header = `<tr><td colspan="5" style="padding:10px 8px 4px;background:#f0f4f8;font-weight:bold;color:#1a5c2a;font-size:13px;border-top:2px solid #1a5c2a">${tipo} — ${porTipo[tipo].length} proposição(ões)</td></tr>`;
-    const rows = porTipo[tipo].map(p =>
-      `<tr>
-        <td style="padding:8px;border-bottom:1px solid #eee;color:#555;font-size:12px">${p.tipo || '-'}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee"><strong>${p.numero || '-'}/${p.ano || '-'}</strong></td>
-        <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px">${p.autor || '-'}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px;white-space:nowrap">${p.data || '-'}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px">${p.ementa || '-'}</td>
-      </tr>`
-    ).join('');
+    const header = `<tr><td colspan="6" style="padding:10px 8px 4px;background:#f0f4f8;font-weight:bold;color:#1a5c2a;font-size:13px;border-top:2px solid #1a5c2a">${tipo} — ${porTipo[tipo].length} proposição(ões)</td></tr>`;
+    const rows = porTipo[tipo].map(p => {
+      const numeroAno = `${escapeHtml(p.numero || '-')}/${escapeHtml(p.ano || '-')}`;
+      const link = escapeHtml(p.link || construirLinkProposicao(p));
+      return `<tr>
+        <td style="padding:8px;border-bottom:1px solid #eee;color:#555;font-size:12px">${escapeHtml(p.tipo || '-')}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee"><strong><a href="${link}" style="color:#1a5c2a;text-decoration:underline">${numeroAno}</a></strong></td>
+        <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px">${escapeHtml(p.autor || '-')}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px;white-space:nowrap">${escapeHtml(p.data || '-')}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px">${escapeHtml(p.ementa || '-')}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px;white-space:nowrap"><a href="${link}" style="color:#1a5c2a;text-decoration:underline">Abrir</a></td>
+      </tr>`;
+    }).join('');
     return header + rows;
   }).join('');
 
@@ -65,6 +82,7 @@ async function enviarEmail(novas) {
             <th style="padding:10px;text-align:left">Autor</th>
             <th style="padding:10px;text-align:left">Data</th>
             <th style="padding:10px;text-align:left">Ementa</th>
+            <th style="padding:10px;text-align:left">Link</th>
           </tr>
         </thead>
         <tbody>${linhas}</tbody>
@@ -150,14 +168,16 @@ function extrairTipo(p) {
 }
 
 function normalizarProposicao(p) {
+  const id = String(p.id);
   return {
-    id: String(p.id),
+    id,
     tipo: extrairTipo(p),
     numero: p.numero || '-',
     ano: p.ano || '-',
     autor: '-', // SAPL não retorna autor inline; exigiria chamada extra em /autoria/
     data: p.data_apresentacao || '-',
     ementa: (p.ementa || '-').substring(0, 200),
+    link: construirLinkProposicao({ id }),
   };
 }
 
