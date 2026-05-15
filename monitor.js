@@ -19,6 +19,11 @@ function salvarEstado(estado) {
 }
 
 async function enviarEmail(novas) {
+  if (process.env.DRY_RUN_EMAIL === '1') {
+    console.log(`[DRY_RUN_EMAIL] Email não enviado. Seriam ${novas.length} proposições.`);
+    return;
+  }
+
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: { user: EMAIL_REMETENTE, pass: EMAIL_SENHA },
@@ -84,13 +89,15 @@ async function buscarProposicoes() {
   const ano = new Date().getFullYear();
   console.log(`Buscando proposicoes de ${ano}...`);
 
-  // ALETO: API ignora ordering e nao retorna count/next corretos.
-  // Buscar multiplas paginas com page_size=200 ate pagina vazia.
+  // ALETO/SAPL customizado: o endpoint ignora page_size=200 e devolve 100 por pagina,
+  // mas informa total_pages em pagination. Não parar por lista.length < PAGE_SIZE.
   const PAGE_SIZE = 200;
+  const MAX_PAGES = 50;
   const todas = [];
   const idsSeen = new Set();
+  let totalPages = null;
 
-  for (let page = 1; page <= 10; page++) {
+  for (let page = 1; page <= (totalPages || MAX_PAGES); page++) {
     const url = `${API_BASE}/materia/materialegislativa/?ano=${ano}&page=${page}&page_size=${PAGE_SIZE}`;
     let response;
     try {
@@ -105,17 +112,23 @@ async function buscarProposicoes() {
     }
     const json = await response.json();
     const lista = json.results || [];
+    const pagination = json.pagination || {};
+    if (pagination.total_pages) totalPages = Math.min(Number(pagination.total_pages), MAX_PAGES);
     if (lista.length === 0) break;
 
     let novas = 0;
     for (const item of lista) {
-      if (!idsSeen.has(item.id)) { idsSeen.add(item.id); todas.push(item); novas++; }
+      const id = String(item.id);
+      if (!idsSeen.has(id)) {
+        idsSeen.add(id);
+        todas.push(item);
+        novas++;
+      }
     }
-    console.log(`Pagina ${page}: ${lista.length} itens (${novas} novos, total: ${todas.length})`);
+    console.log(`Pagina ${page}/${totalPages || '?'}: ${lista.length} itens (${novas} novos, total: ${todas.length})`);
 
-    // Se retornou menos que PAGE_SIZE, nao ha mais paginas
-    if (lista.length < PAGE_SIZE) break;
-    // Se nao veio nenhum item novo (API retornou os mesmos), para
+    // Para apenas quando a propria API diz que nao ha proxima pagina.
+    if (pagination.next_page === null || pagination.next_page === undefined && totalPages && page >= totalPages) break;
     if (novas === 0) break;
   }
 
