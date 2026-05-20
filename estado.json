@@ -694,6 +694,6 @@
     "14335",
     "14389"
   ],
-  "ultima_execucao": "2026-05-20T14:16:19.636Z",
+  "ultima_execucao": "2026-05-20T21:20:30.335Z",
   "observacao": "Catch-up controlado: backlog anterior a 2026-05-05 marcado como visto para evitar disparo histórico; próximo run alerta apenas novidades desde 2026-05-05."
 }
