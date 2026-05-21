@@ -793,8 +793,21 @@
     "14414",
     "14413",
     "14412",
-    "14411"
+    "14411",
+    "14502",
+    "14503",
+    "14501",
+    "14500",
+    "14499",
+    "14498",
+    "14497",
+    "14496",
+    "14495",
+    "14494",
+    "14493",
+    "14492",
+    "14491"
   ],
-  "ultima_execucao": "2026-05-21T14:23:21.863Z",
+  "ultima_execucao": "2026-05-21T21:16:17.957Z",
   "observacao": "Catch-up controlado: backlog anterior a 2026-05-05 marcado como visto para evitar disparo histórico; próximo run alerta apenas novidades desde 2026-05-05."
 }
