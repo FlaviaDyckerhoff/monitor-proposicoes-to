@@ -1,5 +1,4 @@
 const fs = require('fs');
-const nodemailer = require('nodemailer');
 
 const EMAIL_DESTINO = process.env.EMAIL_DESTINO;
 const EMAIL_REMETENTE = process.env.EMAIL_REMETENTE;
@@ -11,7 +10,7 @@ function carregarEstado() {
   if (fs.existsSync(ARQUIVO_ESTADO)) {
     return JSON.parse(fs.readFileSync(ARQUIVO_ESTADO, 'utf8'));
   }
-  return { proposicoes_vistas: [], ultima_execucao: '' };
+  return { proposicoes_vistas: [], ultimos_por_tipo_ano: {}, ultima_execucao: '' };
 }
 
 function salvarEstado(estado) {
@@ -31,12 +30,67 @@ function construirLinkProposicao(p) {
   return p.id ? `https://sapl.al.to.leg.br/materia/${encodeURIComponent(p.id)}` : 'https://sapl.al.to.leg.br/materia/pesquisar-materia';
 }
 
-async function enviarEmail(novas) {
+function numeroInteiro(p) {
+  const n = Number(String(p.numero || '').replace(/\D/g, ''));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function chaveTipoAno(p) {
+  return `${p.tipo || 'OUTROS'}|${p.ano || '-'}`;
+}
+
+function calcularUltimosPorTipoAno(proposicoes) {
+  const ultimos = {};
+  for (const p of proposicoes) {
+    const numero = numeroInteiro(p);
+    if (!numero || !p.ano || p.ano === '-') continue;
+    const chave = chaveTipoAno(p);
+    ultimos[chave] = Math.max(ultimos[chave] || 0, numero);
+  }
+  return ultimos;
+}
+
+function detectarSaltos(proposicoes, estado) {
+  const anteriores = estado.ultimos_por_tipo_ano || {};
+  const atuais = calcularUltimosPorTipoAno(proposicoes);
+  const presentes = {};
+  for (const p of proposicoes) {
+    const numero = numeroInteiro(p);
+    if (!numero) continue;
+    const chave = chaveTipoAno(p);
+    if (!presentes[chave]) presentes[chave] = new Set();
+    presentes[chave].add(numero);
+  }
+  const alertas = [];
+  for (const [chave, atual] of Object.entries(atuais)) {
+    const anterior = Number(anteriores[chave] || 0);
+    if (!anterior || atual <= anterior + 1) continue;
+    const faltantes = [];
+    for (let n = anterior + 1; n < atual; n++) {
+      if (!presentes[chave]?.has(n)) faltantes.push(n);
+    }
+    if (faltantes.length) {
+      const [tipo, ano] = chave.split('|');
+      alertas.push({ tipo, ano, anterior, atual, faltantes });
+    }
+  }
+  return { alertas, atuais };
+}
+
+function renderAlertasSaltos(alertas) {
+  if (!alertas.length) return '';
+  const itens = alertas.map(a => `<li><strong>${escapeHtml(a.tipo)} ${escapeHtml(a.ano)}</strong>: último visto ${a.anterior}, maior atual ${a.atual}. Possível(is) ausente(s): ${escapeHtml(a.faltantes.join(', '))}</li>`).join('');
+  return `<div style="background:#fff4e5;border:1px solid #f59e0b;color:#7c2d12;padding:12px 14px;margin:12px 0;border-radius:4px"><strong>Alerta de sequência:</strong><ul style="margin:8px 0 0 18px;padding:0">${itens}</ul></div>`;
+}
+
+async function enviarEmail(novas, alertas = []) {
   if (process.env.DRY_RUN_EMAIL === '1') {
     console.log(`[DRY_RUN_EMAIL] Email não enviado. Seriam ${novas.length} proposições.`);
     novas.slice(0, 5).forEach(p => console.log(`[DRY_RUN_EMAIL] ${p.tipo} ${p.numero}/${p.ano}: ${p.link}`));
+    alertas.forEach(a => console.log(`[ALERTA_SEQUENCIA] ${a.tipo}/${a.ano}: ${a.anterior} -> ${a.atual}; faltantes: ${a.faltantes.join(', ')}`));
     return;
   }
+  const nodemailer = require('nodemailer');
 
   const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -74,6 +128,7 @@ async function enviarEmail(novas) {
         🏛️ Assembleia Legislativa do Tocantins — ${novas.length} nova(s) proposição(ões)
       </h2>
       <p style="color:#666">Monitoramento automático — ${new Date().toLocaleString('pt-BR')}</p>
+      ${renderAlertasSaltos(alertas)}
       <table style="width:100%;border-collapse:collapse;font-size:14px">
         <thead>
           <tr style="background:#1a5c2a;color:white">
@@ -96,7 +151,7 @@ async function enviarEmail(novas) {
   await transporter.sendMail({
     from: `"Monitor Tocantins" <${EMAIL_REMETENTE}>`,
     to: EMAIL_DESTINO,
-    subject: `🏛️ Tocantins: ${novas.length} nova(s) proposição(ões) — ${new Date().toLocaleDateString('pt-BR')}`,
+    subject: `🏛️ Tocantins: ${novas.length} nova(s) proposição(ões)${alertas.length ? ' | alerta sequência' : ''} — ${new Date().toLocaleDateString('pt-BR')}`,
     html,
   });
 
@@ -199,21 +254,28 @@ function normalizarProposicao(p) {
   console.log(`📊 Total normalizado: ${proposicoes.length}`);
 
   const novas = proposicoes.filter(p => !idsVistos.has(p.id));
+  const { alertas, atuais } = detectarSaltos(proposicoes, estado);
   console.log(`🆕 Proposições novas: ${novas.length}`);
+  if (process.env.DRY_RUN_EMAIL === '1') {
+    await enviarEmail(novas, alertas);
+    console.log('DRY_RUN_EMAIL=1 — estado preservado sem alterações.');
+    return;
+  }
 
-  if (novas.length > 0) {
+  if (novas.length > 0 || alertas.length > 0) {
     novas.sort((a, b) => {
       if (a.tipo < b.tipo) return -1;
       if (a.tipo > b.tipo) return 1;
       return (parseInt(b.numero) || 0) - (parseInt(a.numero) || 0);
     });
-    await enviarEmail(novas);
+    await enviarEmail(novas, alertas);
     novas.forEach(p => idsVistos.add(p.id));
     estado.proposicoes_vistas = Array.from(idsVistos);
   } else {
     console.log('✅ Sem novidades. Nada a enviar.');
   }
 
+  estado.ultimos_por_tipo_ano = { ...(estado.ultimos_por_tipo_ano || {}), ...atuais };
   estado.ultima_execucao = new Date().toISOString();
   salvarEstado(estado);
 })();
