@@ -83,6 +83,26 @@ function renderAlertasSaltos(alertas) {
   return `<div style="background:#fff4e5;border:1px solid #f59e0b;color:#7c2d12;padding:12px 14px;margin:12px 0;border-radius:4px"><strong>Alerta de sequência:</strong><ul style="margin:8px 0 0 18px;padding:0">${itens}</ul></div>`;
 }
 
+function prioridadeTipoEmail(tipo) {
+  const t = String(tipo || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim();
+
+  if (/^(PL|PLO)(\b|$)/.test(t) || /^PROJETO DE LEI( ORDINARIA)?$/.test(t)) return 0;
+  if (/^PLC(\b|$)/.test(t) || /^PROJETO DE LEI COMPLEMENTAR/.test(t)) return 1;
+  if (/^PEC(\b|$)/.test(t) || /^(PROPOSTA|PROJETO) DE EMENDA (A )?CONSTITUCIONAL/.test(t)) return 2;
+  return 10;
+}
+
+function compararTiposEmail(a, b) {
+  const prioridadeA = prioridadeTipoEmail(a);
+  const prioridadeB = prioridadeTipoEmail(b);
+  if (prioridadeA !== prioridadeB) return prioridadeA - prioridadeB;
+  return String(a || '').localeCompare(String(b || ''), 'pt-BR');
+}
+
 async function enviarEmail(novas, alertas = []) {
   if (process.env.DRY_RUN_EMAIL === '1') {
     console.log(`[DRY_RUN_EMAIL] Email não enviado. Seriam ${novas.length} proposições.`);
@@ -105,7 +125,7 @@ async function enviarEmail(novas, alertas = []) {
     porTipo[tipo].push(p);
   });
 
-  const linhas = Object.keys(porTipo).sort().map(tipo => {
+  const linhas = Object.keys(porTipo).sort(compararTiposEmail).map(tipo => {
     const header = `<tr><td colspan="6" style="padding:10px 8px 4px;background:#f0f4f8;font-weight:bold;color:#1a5c2a;font-size:13px;border-top:2px solid #1a5c2a">${tipo} — ${porTipo[tipo].length} proposição(ões)</td></tr>`;
     const rows = porTipo[tipo].map(p => {
       const numeroAno = `${escapeHtml(p.numero || '-')}/${escapeHtml(p.ano || '-')}`;
