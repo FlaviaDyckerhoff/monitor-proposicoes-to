@@ -877,9 +877,10 @@
     "14566",
     "14565",
     "14564",
-    "14563"
+    "14563",
+    "14577"
   ],
-  "ultima_execucao": "2026-06-03T14:30:29.518Z",
+  "ultima_execucao": "2026-06-04T12:45:10.506Z",
   "observacao": "Catch-up controlado: backlog anterior a 2026-05-05 marcado como visto para evitar disparo histórico; próximo run alerta apenas novidades desde 2026-05-05.",
   "ultimos_por_tipo_ano": {
     "Medida Provisória|2026": 26,
@@ -887,7 +888,7 @@
     "Proposta de Emenda Constitucional da Casa|2026": 1,
     "Projeto de Lei Complementar da Casa|2026": 1,
     "Projeto de Lei Complementar do Executivo|2026": 3,
-    "Projeto de Lei da Casa|2026": 202,
+    "Projeto de Lei da Casa|2026": 203,
     "Projeto de Lei da Defensoria Pública|2026": 1,
     "Projeto de Lei de Conversão|2026": 5,
     "Projeto de Lei do Executivo|2026": 9,
