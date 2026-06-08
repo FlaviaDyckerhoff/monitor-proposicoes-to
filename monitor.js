@@ -251,7 +251,7 @@ function normalizarProposicao(p) {
     ano: p.ano || '-',
     autor: '-', // SAPL não retorna autor inline; exigiria chamada extra em /autoria/
     data: p.data_apresentacao || '-',
-    ementa: (p.ementa || '-').substring(0, 200),
+    ementa: String(p.ementa || '-').replace(/\s+/g, ' ').trim() || '-',
     link: construirLinkProposicao({ id }),
   };
 }
