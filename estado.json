@@ -1068,9 +1068,10 @@
     "14749",
     "14747",
     "14746",
-    "14745"
+    "14745",
+    "14770"
   ],
-  "ultima_execucao": "2026-09-09T08:47:08.810Z",
+  "ultima_execucao": "2026-09-10T08:47:13.314Z",
   "observacao": "Catch-up controlado: backlog anterior a 2026-05-05 marcado como visto para evitar disparo histórico; próximo run alerta apenas novidades desde 2026-05-05.",
   "ultimos_por_tipo_ano": {
     "Medida Provisória|2026": 30,
@@ -1086,7 +1087,7 @@
     "Projeto de Lei do TJ|2026": 6,
     "Projeto de Lei do Tribunal de Contas|2026": 5,
     "Projeto de Resolução|2026": 5,
-    "Requerimento|2026": 736,
+    "Requerimento|2026": 737,
     "Projeto de Lei Complementar da Defensoria Pública|2026": 3
   }
 }
