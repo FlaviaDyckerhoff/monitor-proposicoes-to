@@ -1151,9 +1151,15 @@
     "14810",
     "14809",
     "14808",
-    "14807"
+    "14807",
+    "14857",
+    "14860",
+    "14859",
+    "14858",
+    "14861",
+    "14856"
   ],
-  "ultima_execucao": "2026-11-25T08:46:28.064Z",
+  "ultima_execucao": "2026-11-26T08:46:39.033Z",
   "observacao": "Catch-up controlado: backlog anterior a 2026-05-05 marcado como visto para evitar disparo histórico; próximo run alerta apenas novidades desde 2026-05-05.",
   "ultimos_por_tipo_ano": {
     "Medida Provisória|2026": 35,
@@ -1164,13 +1170,14 @@
     "Projeto de Lei da Casa|2026": 280,
     "Projeto de Lei da Defensoria Pública|2026": 1,
     "Projeto de Lei de Conversão|2026": 5,
-    "Projeto de Lei do Executivo|2026": 19,
+    "Projeto de Lei do Executivo|2026": 21,
     "Projeto de Lei do Ministério Público|2026": 3,
     "Projeto de Lei do TJ|2026": 7,
     "Projeto de Lei do Tribunal de Contas|2026": 5,
     "Projeto de Resolução|2026": 5,
-    "Requerimento|2026": 789,
+    "Requerimento|2026": 791,
     "Projeto de Lei Complementar da Defensoria Pública|2026": 5,
-    "Proposta de Emenda Constitucional do Executivo|2026": 1
+    "Proposta de Emenda Constitucional do Executivo|2026": 1,
+    "Projeto de Lei Complementar do TJ|2026": 1
   }
 }
